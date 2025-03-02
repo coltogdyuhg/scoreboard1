@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Basketball Scoreboard</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+        }
+        .scoreboard {
+            width: 80%;
+            max-width: 600px;
+            margin: 20px auto;
+            border: 2px solid black;
+            padding: 20px;
+        }
+        .team-scores {
+            display: flex;
+            justify-content: space-around;
+        }
+        .team {
+            text-align: center;
+        }
+        .score {
+            font-size: 3em;
+        }
+        .timer {
+            font-size: 2em;
+            margin-top: 10px;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+        .controls button {
+            padding: 8px 15px;
+            margin: 5px;
+        }
+        .bonus-dots {
+            display: flex;
+            justify-content: center;
+            margin-top: 5px;
+        }
+        .bonus-dot {
+            width: 10px;
+            height: 10px;
+            background-color: gray;
+            border-radius: 50%;
+            margin: 3px;
+        }
+        .bonus-dot.active {
+            background-color: yellow;
+        }
+        .clock-edit {
+            margin-top: 10px;
+        }
+        .clock-edit input {
+            width: 40px;
+            text-align: center;
+        }
+        #periodDisplay {
+            margin-top: 10px;
+            font-size:1.2em;
+        }
+        /* Added styles for timeouts */
+        .timeouts {
+            margin-top: 10px; 
+            font-size: 1.5em;
+        }
+        .timeout-controls {
+            margin-top: 10px;
+        }
+        .timeout-controls button {
+            padding: 5px 10px;
+            margin: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="scoreboard">
+        <div class="team-scores">
+            <div class="team">
+                <h2>HOME</h2>
+                <div class="score" id="homeScore">0</div>
+                <div class="timeouts" id="homeTimeouts">Timeouts: 3</div> <div class="bonus-dots">
+                    <div class="bonus-dot" id="homeBonus1"></div>
+                    <div class="bonus-dot" id="homeBonus2"></div>
+                </div>
+            </div>
+            <div class="team">
+                <h2>GUEST</h2>
+                <div class="score" id="guestScore">0</div>
+                <div class="timeouts" id="guestTimeouts">Timeouts: 3</div> <div class="bonus-dots">
+                    <div class="bonus-dot" id="guestBonus1"></div>
+                    <div class="bonus-dot" id="guestBonus2"></div>
+                </div>
+            </div>
+        </div>
+        <div id="periodDisplay">Period: 1</div>
+        <div class="timer" id="timer">00:00.000</div>
+        <div class="clock-edit">
+            <label for="minutes">Minutes:</label>
+            <input type="number" id="minutesInput" value="0">
+            <label for="seconds">Seconds:</label>
+            <input type="number" id="secondsInput" value="0">
+            <label for="milliseconds">Milliseconds:</label>
+            <input type="number" id="millisecondsInput" value="0">
+            <button onclick="setTime()">Set Timer</button>
+        </div>
+        <div class="controls">
+            <button onclick="startTimer()">Start</button>
+            <button onclick="pauseTimer()">Pause</button>
+            <button onclick="resetTimer()">Reset</button>
+            <button onclick="changePeriod(1)">P+1</button>
+            <button onclick="changePeriod(-1)">P-1</button>
+            <button onclick="playHorn()">Horn</button>
+        </div>
+        <div class="score-controls">
+            <button onclick="updateHomeScore(1)">+1 Home</button>
+            <button onclick="updateHomeScore(-1)">-1 Home</button>
+            <button onclick="toggleHomeBonus()">HOME B</button>
+            <button onclick="updateGuestScore(1)">+1 Guest</button>
+            <button onclick="updateGuestScore(-1)">-1 Guest</button>
+            <button onclick="toggleGuestBonus()">GUEST B</button>
+        </div>
+        <div class="timeout-controls">
+            <button onclick="addHomeTimeout()">+TO Home</button>
+            <button onclick="useHomeTimeout()">-TO Home</button>
+            <button onclick="addGuestTimeout()">+TO Guest</button>
+            <button onclick="useGuestTimeout()">-TO Guest</button>
+        </div>
+    </div>
+
+    <audio id="hornSound" src="mixkit-basketball-buzzer-1647.wav"></audio>
+
+    <script>
+        let minutes = 0;
+        let seconds = 0;
+        let milliseconds = 0;
+        let timerInterval;
+        let period = 1;
+        let homeScore = 0;
+        let guestScore = 0;
+        let homeBonus = false;
+        let guestBonus = false;
+        let homeTimeouts = 3; // Added variable for home timeouts
+        let guestTimeouts = 3; // Added variable for guest timeouts
+
+        function updateHomeScore(amount) {
+            homeScore += amount;
+            document.getElementById('homeScore').textContent = homeScore;
+        }
+
+        function updateGuestScore(amount) {
+            guestScore += amount;
+            document.getElementById('guestScore').textContent = guestScore;
+        }
+
+        function toggleHomeBonus() {
+            homeBonus = !homeBonus;
+            document.getElementById('homeBonus1').classList.toggle('active', homeBonus);
+            document.getElementById('homeBonus2').classList.toggle('active', homeBonus);
+        }
+
+        function toggleGuestBonus() {
+            guestBonus = !guestBonus;
+            document.getElementById('guestBonus1').classList.toggle('active', guestBonus);
+            document.getElementById('guestBonus2').classList.toggle('active', guestBonus);
+        }
+
+        function startTimer() {
+            minutes = parseInt(document.getElementById('minutesInput').value);
+            seconds = parseInt(document.getElementById('secondsInput').value);
+            milliseconds = parseInt(document.getElementById('millisecondsInput').value);
+
+            if (isNaN(minutes) || minutes < 0) minutes = 0;
+            if (isNaN(seconds) || seconds < 0 || seconds > 59) seconds = 0;
+            if (isNaN(milliseconds) || milliseconds < 0 || milliseconds > 999) milliseconds = 0;
+
+            if (!timerInterval) {
+                timerInterval = setInterval(updateTimer, 10);
+            }
+        }
+
+        function pauseTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            minutes = 0;
+            seconds = 0;
+            milliseconds = 0;
+            updateTimerDisplay();
+        }
+
+        function updateTimer() {
+            if (milliseconds > 0) {
+                milliseconds -= 10;
+            } else {
+                milliseconds = 990;
+                if (seconds > 0) {
+                    seconds--;
+                } else if (minutes > 0) {
+                    minutes--;
+                    seconds = 59;
+                } else {
+                    pauseTimer();
+                    playHorn();
+                    return;
+                }
+            }
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            document.getElementById('timer').textContent = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0') + '.' + String(milliseconds).padStart(3, '0');
+        }
+
+        function setTime() {
+            minutes = parseInt(document.getElementById('minutesInput').value);
+            seconds = parseInt(document.getElementById('secondsInput').value);
+            milliseconds = parseInt(document.getElementById('millisecondsInput').value);
+
+            if (isNaN(minutes) || minutes < 0) minutes = 0;
+            if (isNaN(seconds) || seconds < 0 || seconds > 59) seconds = 0;
+            if (isNaN(milliseconds) || milliseconds < 0 || milliseconds > 999) milliseconds = 0;
+
+            updateTimerDisplay();
+        }
+
+        function changePeriod(amount) {
+            period += amount;
+            if (period < 1) {
+                period = 1;
+            }
+            document.getElementById('periodDisplay').textContent = "Period: " + period;
+        }
+
+        function playHorn() {
+            const horn = document.getElementById('hornSound');
+            horn.currentTime = 0;
+            horn.play();
+        }
+
+        // Function to use a timeout
+        function useHomeTimeout() {
+            if (homeTimeouts > 0) {
+                homeTimeouts--;
+                document.getElementById('homeTimeouts').textContent = "Timeouts: " + homeTimeouts;
+            }
+        }
+
+        // Function to use a timeout
+        function useGuestTimeout() {
+            if (guestTimeouts > 0) {
+                guestTimeouts--;
+                document.getElementById('guestTimeouts').textContent = "Timeouts: " + guestTimeouts;
+            }
+        }
+
+        // Function to add a timeout to the home team
+        function addHomeTimeout() {
+            homeTimeouts++;
+            document.getElementById('homeTimeouts').textContent = "Timeouts: " + homeTimeouts;
+        }
+
+        // Function to add a timeout to the guest team
+        function addGuestTimeout() {
+            guestTimeouts++;
+            document.getElementById('guestTimeouts').textContent = "Timeouts: " + guestTimeouts;
+        }
+
+        updateTimerDisplay();
+        document.getElementById('periodDisplay').textContent = "Period: " + period;
+    </script>
+</body>
+</html>
